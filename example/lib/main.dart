@@ -49,37 +49,51 @@ class _MyAppState extends State<MyApp> {
                   final fullState = snapshot.data;
                   final state = fullState?.state;
                   final buffering = fullState?.buffering;
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (state == AudioPlaybackState.connecting ||
-                          buffering == true)
-                        Container(
-                          margin: EdgeInsets.all(8.0),
-                          width: 64.0,
-                          height: 64.0,
-                          child: CircularProgressIndicator(),
-                        )
-                      else if (state == AudioPlaybackState.playing)
-                        IconButton(
-                          icon: Icon(Icons.pause),
-                          iconSize: 64.0,
-                          onPressed: _player.pause,
-                        )
-                      else
-                        IconButton(
-                          icon: Icon(Icons.play_arrow),
-                          iconSize: 64.0,
-                          onPressed: _player.play,
-                        ),
-                      IconButton(
-                        icon: Icon(Icons.stop),
-                        iconSize: 64.0,
-                        onPressed: state == AudioPlaybackState.stopped ||
-                                state == AudioPlaybackState.none
-                            ? null
-                            : _player.stop,
+                  final playbackError = fullState?.playbackError;
+                  return Column(
+                    children: <Widget>[
+                      playbackError != null ? Text(playbackError) : Center(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (playbackError != null)
+                            IconButton(
+                              iconSize: 64,
+                              icon: Icon(Icons.refresh),
+                              onPressed: () => _player.setUrl(
+                                  "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3"),
+                            )
+                          else if (state == AudioPlaybackState.connecting ||
+                              buffering == true)
+                            Container(
+                              margin: EdgeInsets.all(8.0),
+                              width: 64.0,
+                              height: 64.0,
+                              child: CircularProgressIndicator(),
+                            )
+                          else if (state == AudioPlaybackState.playing)
+                            IconButton(
+                              icon: Icon(Icons.pause),
+                              iconSize: 64.0,
+                              onPressed: _player.pause,
+                            )
+                          else
+                            IconButton(
+                              icon: Icon(Icons.play_arrow),
+                              iconSize: 64.0,
+                              onPressed: _player.play,
+                            ),
+                          IconButton(
+                            icon: Icon(Icons.stop),
+                            iconSize: 64.0,
+                            onPressed: state == AudioPlaybackState.stopped ||
+                                    state == AudioPlaybackState.none
+                                ? null
+                                : _player.stop,
+                          ),
+                        ],
                       ),
+                      Text(state.toString())
                     ],
                   );
                 },
@@ -96,11 +110,24 @@ class _MyAppState extends State<MyApp> {
                       if (position > duration) {
                         position = duration;
                       }
-                      return SeekBar(
-                        duration: duration,
-                        position: position,
-                        onChangeEnd: (newPosition) {
-                          _player.seek(newPosition);
+                      return StreamBuilder<Duration>(
+                        stream: _player.bufferedPositionStream,
+                        builder: (context, snapshot) {
+                          final bufferPosition = snapshot.data ?? Duration.zero;
+                          return Column(
+                            children: <Widget>[
+                              Text('Position ' + position.inSeconds.toString()),
+                              Text('Buffer Position ' +
+                                  bufferPosition.inSeconds.toString()),
+                              SeekBar(
+                                duration: duration,
+                                position: position,
+                                onChangeEnd: (newPosition) {
+                                  _player.seek(newPosition);
+                                },
+                              ),
+                            ],
+                          );
                         },
                       );
                     },
