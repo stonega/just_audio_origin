@@ -83,6 +83,8 @@ class AudioPlayer {
 
   final _bufferedPositionSubject = BehaviorSubject<Duration>();
 
+  final _playbackErrorSubject = BehaviorSubject<String>();
+
   final _fullPlaybackStateSubject = BehaviorSubject<FullAudioPlaybackState>();
 
   double _volume = 1.0;
@@ -106,6 +108,7 @@ class AudioPlayer {
               updatePosition: Duration(milliseconds: data[2]),
               updateTime: Duration(milliseconds: data[3]),
               bufferedPosition: Duration(milliseconds: data[4]),
+              playbackError: data[5],
               speed: _speed,
               duration: _duration,
             ));
@@ -117,11 +120,15 @@ class AudioPlayer {
         playbackEventStream.map((state) => state.buffering).distinct());
     _bufferedPositionSubject.addStream(
         playbackEventStream.map((state) => state.bufferedPosition).distinct());
+    _playbackErrorSubject.addStream(
+        playbackEventStream.map((state) => state.playbackError).distinct());
     _fullPlaybackStateSubject.addStream(
-        Rx.combineLatest2<AudioPlaybackState, bool, FullAudioPlaybackState>(
+        Rx.combineLatest3<AudioPlaybackState, bool, String, FullAudioPlaybackState>(
             playbackStateStream,
             bufferingStream,
-            (state, buffering) => FullAudioPlaybackState(state, buffering)));
+            playbackErrorStream,
+            (state, buffering, playbackError) =>
+                FullAudioPlaybackState(state, buffering, playbackError)));
   }
 
   /// The duration of any media set via [setUrl], [setFilePath] or [setAsset],
@@ -154,7 +161,9 @@ class AudioPlayer {
   /// A stream of buffered positions.
   Stream<Duration> get bufferedPositionStream =>
       _bufferedPositionSubject.stream;
-
+  /// A stream of playback error
+  Stream<String> get playbackErrorStream => 
+      _playbackErrorSubject.stream;
   /// A stream of [FullAudioPlaybackState]s.
   Stream<FullAudioPlaybackState> get fullPlaybackStateStream =>
       _fullPlaybackStateSubject.stream;
@@ -344,6 +353,9 @@ class AudioPlaybackEvent {
   /// The media duration.
   final Duration duration;
 
+  /// Playback erro
+  final String playbackError;
+
   AudioPlaybackEvent({
     @required this.state,
     @required this.buffering,
@@ -352,6 +364,7 @@ class AudioPlaybackEvent {
     @required this.bufferedPosition,
     @required this.speed,
     @required this.duration,
+    this.playbackError,
   });
 
   /// The current position of the player.
@@ -369,7 +382,7 @@ class AudioPlaybackEvent {
 
   @override
   String toString() =>
-      "{state=$state, updateTime=$updateTime, updatePosition=$updatePosition, speed=$speed}";
+      "{state=$state, updateTime=$updateTime, updatePosition=$updatePosition, speed=$speed, error = $playbackError}";
 }
 
 /// Enumerates the different playback states of a player.
@@ -385,6 +398,6 @@ enum AudioPlaybackState {
 class FullAudioPlaybackState {
   final AudioPlaybackState state;
   final bool buffering;
-
-  FullAudioPlaybackState(this.state, this.buffering);
+  final String playbackError;
+  FullAudioPlaybackState(this.state, this.buffering, this.playbackError);
 }
