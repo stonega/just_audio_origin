@@ -53,6 +53,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private Result seekResult;
 	private boolean seekProcessed;
 	private boolean buffering;
+	private String playbackError;
 	private boolean justConnected;
 	private MediaSource mediaSource;
 
@@ -66,7 +67,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 				bufferedPosition = newBufferedPosition;
 				broadcastPlaybackEvent();
 			}
-			if (duration > 0 && newBufferedPosition >= duration) return;
+			if (duration > 0 && newBufferedPosition >= duration)
+				return;
 			if (buffering) {
 				handler.postDelayed(this, 200);
 			} else if (state == PlaybackState.playing) {
@@ -111,23 +113,30 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	@Override
 	public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
 		switch (playbackState) {
-		case Player.STATE_READY:
-			if (prepareResult != null) {
-				duration = player.getDuration();
-				justConnected = true;
-				prepareResult.success(duration);
-				prepareResult = null;
-				transition(PlaybackState.stopped);
-			}
-			if (seekProcessed) {
-				completeSeek();
-			}
-			break;
-		case Player.STATE_ENDED:
-			if (state != PlaybackState.completed) {
-				transition(PlaybackState.completed);
-			}
-			break;
+			case Player.STATE_READY:
+				if (prepareResult != null) {
+					duration = player.getDuration();
+					justConnected = true;
+					prepareResult.success(duration);
+					prepareResult = null;
+					transition(PlaybackState.stopped);
+				}
+				if (seekProcessed) {
+					completeSeek();
+				}
+				break;
+			case Player.STATE_ENDED:
+				if (state != PlaybackState.completed) {
+					transition(PlaybackState.completed);
+				}
+				break;
+
+			case Player.STATE_IDLE:
+				if (player.getPlaybackError() != null) {
+					playbackError = player.getPlaybackError().getLocalizedMessage();
+					broadcastPlaybackEvent();
+				}
+				break;
 		}
 		final boolean buffering = playbackState == Player.STATE_BUFFERING;
 		// don't notify buffering if (buffering && state == stopped)
@@ -160,57 +169,57 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 
 	@Override
 	public void onMethodCall(final MethodCall call, final Result result) {
-		final List<?> args = (List<?>)call.arguments;
+		final List<?> args = (List<?>) call.arguments;
 		try {
 			switch (call.method) {
-			case "setUrl":
-				setUrl((String)args.get(0), result);
-				break;
-			case "setClip":
-				Object start = args.get(0);
-				if (start != null && start instanceof Integer) {
-					start = new Long((Integer)start);
-				}
-				Object end = args.get(1);
-				if (end != null && end instanceof Integer) {
-					end = new Long((Integer)end);
-				}
-				setClip((Long)start, (Long)end, result);
-				break;
-			case "play":
-				play();
-				result.success(null);
-				break;
-			case "pause":
-				pause();
-				result.success(null);
-				break;
-			case "stop":
-				stop(result);
-				break;
-			case "setVolume":
-				setVolume((float)((double)((Double)args.get(0))));
-				result.success(null);
-				break;
-			case "setSpeed":
-				setSpeed((float)((double)((Double)args.get(0))));
-				result.success(null);
-				break;
-			case "seek":
-				Object position = args.get(0);
-				if (position instanceof Integer) {
-					seek((Integer)position, result);
-				} else {
-					seek((Long)position, result);
-				}
-				break;
-			case "dispose":
-				dispose();
-				result.success(null);
-				break;
-			default:
-				result.notImplemented();
-				break;
+				case "setUrl":
+					setUrl((String) args.get(0), result);
+					break;
+				case "setClip":
+					Object start = args.get(0);
+					if (start != null && start instanceof Integer) {
+						start = new Long((Integer) start);
+					}
+					Object end = args.get(1);
+					if (end != null && end instanceof Integer) {
+						end = new Long((Integer) end);
+					}
+					setClip((Long) start, (Long) end, result);
+					break;
+				case "play":
+					play();
+					result.success(null);
+					break;
+				case "pause":
+					pause();
+					result.success(null);
+					break;
+				case "stop":
+					stop(result);
+					break;
+				case "setVolume":
+					setVolume((float) ((double) ((Double) args.get(0))));
+					result.success(null);
+					break;
+				case "setSpeed":
+					setSpeed((float) ((double) ((Double) args.get(0))));
+					result.success(null);
+					break;
+				case "seek":
+					Object position = args.get(0);
+					if (position instanceof Integer) {
+						seek((Integer) position, result);
+					} else {
+						seek((Long) position, result);
+					}
+					break;
+				case "dispose":
+					dispose();
+					result.success(null);
+					break;
+				default:
+					result.notImplemented();
+					break;
 			}
 		} catch (IllegalStateException e) {
 			e.printStackTrace();
@@ -228,6 +237,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		event.add(updatePosition = getCurrentPosition());
 		event.add(updateTime = System.currentTimeMillis());
 		event.add(Math.max(updatePosition, bufferedPosition));
+		event.add(playbackError);
 		eventSink.success(event);
 	}
 
@@ -249,16 +259,14 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 
 	public void setUrl(final String url, final Result result) throws IOException {
 		justConnected = false;
+		playbackError = null;
 		abortExistingConnection();
 		prepareResult = result;
 		transition(PlaybackState.connecting);
 		String userAgent = Util.getUserAgent(context, "just_audio");
-		DataSource.Factory httpDataSourceFactory = new DefaultHttpDataSourceFactory(
-				userAgent,
-				DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS,
-				DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS, 
-				true
-		);
+		DataSource.Factory httpDataSourceFactory = new DefaultHttpDataSourceFactory(userAgent,
+				DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS, DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS,
+				true);
 		DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(context, httpDataSourceFactory);
 		Uri uri = Uri.parse(url);
 		if (uri.getPath().toLowerCase().endsWith(".mpd")) {
@@ -280,9 +288,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		this.end = end;
 		prepareResult = result;
 		if (start != null || end != null) {
-			player.prepare(new ClippingMediaSource(mediaSource,
-						(start != null ? start : 0) * 1000L,
-						(end != null ? end : C.TIME_END_OF_SOURCE) * 1000L));
+			player.prepare(new ClippingMediaSource(mediaSource, (start != null ? start : 0) * 1000L,
+					(end != null ? end : C.TIME_END_OF_SOURCE) * 1000L));
 		} else {
 			player.prepare(mediaSource);
 		}
@@ -290,56 +297,57 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 
 	public void play() {
 		switch (state) {
-		case playing:
-			break;
-		case stopped:
-		case completed:
-		case paused:
-			justConnected = false;
-			transition(PlaybackState.playing);
-			startWatchingBuffer();
-			player.setPlayWhenReady(true);
-			break;
-		default:
-			throw new IllegalStateException("Cannot call play from connecting/none states (" + state + ")");
+			case playing:
+				break;
+			case stopped:
+			case completed:
+			case paused:
+				justConnected = false;
+				transition(PlaybackState.playing);
+				startWatchingBuffer();
+				player.setPlayWhenReady(true);
+				break;
+			default:
+				throw new IllegalStateException("Cannot call play from connecting/none states (" + state + ")");
 		}
 	}
 
 	public void pause() {
 		switch (state) {
-		case paused:
-			break;
-		case playing:
-			player.setPlayWhenReady(false);
-			transition(PlaybackState.paused);
-			break;
-		default:
-			throw new IllegalStateException("Can call pause only from playing and buffering states (" + state + ")");
+			case paused:
+				break;
+			case playing:
+				player.setPlayWhenReady(false);
+				transition(PlaybackState.paused);
+				break;
+			default:
+				throw new IllegalStateException(
+						"Can call pause only from playing and buffering states (" + state + ")");
 		}
 	}
 
 	public void stop(final Result result) {
 		switch (state) {
-		case stopped:
-			result.success(null);
-			break;
-		case connecting:
-			abortExistingConnection();
-			buffering = false;
-			transition(PlaybackState.stopped);
-			result.success(null);
-			break;
-		case completed:
-		case playing:
-		case paused:
-			abortSeek();
-			player.setPlayWhenReady(false);
-			transition(PlaybackState.stopped);
-			player.seekTo(0L);
-			result.success(null);
-			break;
-		default:
-			throw new IllegalStateException("Cannot call stop from none state");
+			case stopped:
+				result.success(null);
+				break;
+			case connecting:
+				abortExistingConnection();
+				buffering = false;
+				transition(PlaybackState.stopped);
+				result.success(null);
+				break;
+			case completed:
+			case playing:
+			case paused:
+				abortSeek();
+				player.setPlayWhenReady(false);
+				transition(PlaybackState.stopped);
+				player.seekTo(0L);
+				result.success(null);
+				break;
+			default:
+				throw new IllegalStateException("Cannot call stop from none state");
 		}
 	}
 
@@ -388,11 +396,6 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	}
 
 	enum PlaybackState {
-		none,
-		stopped,
-		paused,
-		playing,
-		connecting,
-		completed
+		none, stopped, paused, playing, connecting, completed
 	}
 }
