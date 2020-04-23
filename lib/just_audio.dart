@@ -374,7 +374,9 @@ class AudioPlaybackEvent {
           (Duration(milliseconds: DateTime.now().millisecondsSinceEpoch) -
                   updateTime) *
               speed;
+      if(duration != null)
       return result <= duration ? result : duration;
+      else return result; 
     } else {
       return updatePosition;
     }
