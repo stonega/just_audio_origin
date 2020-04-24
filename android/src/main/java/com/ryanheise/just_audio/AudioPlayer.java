@@ -305,7 +305,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 				if (playbackError != null) {
 					player.retry();
 					playbackError = null;
-				};
+				}
+				;
 				justConnected = false;
 				transition(PlaybackState.playing);
 				startWatchingBuffer();
@@ -315,7 +316,6 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 				throw new IllegalStateException("Cannot call play from connecting/none states (" + state + ")");
 		}
 	}
-
 
 	public void pause() {
 		switch (state) {
@@ -345,6 +345,10 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 			case completed:
 			case playing:
 			case paused:
+				if (plabackErroe != null) {
+					abortExistingConnection();
+					buffering = false;
+				}
 				abortSeek();
 				player.setPlayWhenReady(false);
 				transition(PlaybackState.stopped);
