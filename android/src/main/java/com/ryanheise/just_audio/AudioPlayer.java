@@ -345,7 +345,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 			case completed:
 			case playing:
 			case paused:
-				if (plabackErroe != null) {
+				if (playbackError != null) {
 					abortExistingConnection();
 					buffering = false;
 				}
