@@ -288,7 +288,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		} else if (uri.getPath().toLowerCase().endsWith(".m3u8")) {
 			mediaSource = new HlsMediaSource.Factory(cacheDataSourceFactory).createMediaSource(uri);
 		} else {
-			mediaSource = new ProgressiveMediaSource.Factory(cachedDataSourceFactory).createMediaSource(uri);
+			mediaSource = new ProgressiveMediaSource.Factory(cacheDataSourceFactory).createMediaSource(uri);
 		}
 		player.prepare(mediaSource);
 	}
