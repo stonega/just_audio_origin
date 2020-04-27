@@ -15,6 +15,9 @@ import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
 import com.google.android.exoplayer2.util.Util;
+import com.google.android.exoplayer2.upstream.cache.SimpleCache;
+import com.google.android.exoplayer2.upstream.cache.LeastRecentlyUsedCacheEvictor;
+import com.google.android.exoplayer2.upstream.cache.CacheDataSourceFactory;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.EventChannel.EventSink;
 import io.flutter.plugin.common.MethodCall;
@@ -30,6 +33,8 @@ import java.util.LinkedList;
 import android.content.Context;
 import android.net.Uri;
 import java.util.List;
+import java.util.function.LongConsumer;
+import java.io.File;
 
 public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private final Registrar registrar;
@@ -56,6 +61,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private String playbackError;
 	private boolean justConnected;
 	private MediaSource mediaSource;
+	private SimpleCache simpleCache;
 
 	private final SimpleExoPlayer player;
 	private final Handler handler = new Handler();
@@ -173,7 +179,11 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		try {
 			switch (call.method) {
 				case "setUrl":
-					setUrl((String) args.get(0), result);
+					Object cacheMax = args.get(2);
+					if (cacheMax != null && cacheMax instanceof Integer) {
+						cacheMax = new Long((Integer) cacheMax);
+					}
+					setUrl((String) args.get(0), (String) args.get(1), (Long) cacheMax, result);
 					break;
 				case "setClip":
 					Object start = args.get(0);
@@ -257,7 +267,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		broadcastPlaybackEvent();
 	}
 
-	public void setUrl(final String url, final Result result) throws IOException {
+	public void setUrl(final String url, final String cacheDir, final long cacheMax, final Result result) throws IOException {
 		justConnected = false;
 		playbackError = null;
 		abortExistingConnection();
@@ -268,13 +278,17 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 				DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS, DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS,
 				true);
 		DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(context, httpDataSourceFactory);
+		File cacheFolder = new File(cacheDir, "cache");
+		LeastRecentlyUsedCacheEvictor cacheEvictor = new LeastRecentlyUsedCacheEvictor(cacheMax);
+		simpleCache = new SimpleCache(cacheFolder, cacheEvictor);
+		DataSource.Factory cacheDataSourceFactory = new CacheDataSourceFactory(simpleCache, dataSourceFactory);
 		Uri uri = Uri.parse(url);
 		if (uri.getPath().toLowerCase().endsWith(".mpd")) {
-			mediaSource = new DashMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
+			mediaSource = new DashMediaSource.Factory(cacheDataSourceFactory).createMediaSource(uri);
 		} else if (uri.getPath().toLowerCase().endsWith(".m3u8")) {
-			mediaSource = new HlsMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
+			mediaSource = new HlsMediaSource.Factory(cacheDataSourceFactory).createMediaSource(uri);
 		} else {
-			mediaSource = new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(uri);
+			mediaSource = new ProgressiveMediaSource.Factory(cachedDataSourceFactory).createMediaSource(uri);
 		}
 		player.prepare(mediaSource);
 	}
