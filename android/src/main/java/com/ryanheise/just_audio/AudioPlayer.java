@@ -280,6 +280,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(context, httpDataSourceFactory);
 		File cacheFolder = new File(cacheDir, "cache");
 		LeastRecentlyUsedCacheEvictor cacheEvictor = new LeastRecentlyUsedCacheEvictor(cacheMax);
+		if (simpleCache == null)
 		simpleCache = new SimpleCache(cacheFolder, cacheEvictor);
 		DataSource.Factory cacheDataSourceFactory = new CacheDataSourceFactory(simpleCache, dataSourceFactory);
 		Uri uri = Uri.parse(url);
