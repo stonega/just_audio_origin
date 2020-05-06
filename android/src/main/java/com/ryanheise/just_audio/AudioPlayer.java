@@ -354,7 +354,6 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 			case connecting:
 				abortExistingConnection();
 				buffering = false;
-				simpleCache.release();
 				transition(PlaybackState.stopped);
 				result.success(null);
 				break;
@@ -367,7 +366,6 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 				}
 				abortSeek();
 				player.setPlayWhenReady(false);
-				simpleCache.release();
 				transition(PlaybackState.stopped);
 				player.seekTo(0L);
 				result.success(null);
