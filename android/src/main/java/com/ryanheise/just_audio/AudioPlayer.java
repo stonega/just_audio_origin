@@ -248,7 +248,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		event.add(updateTime = System.currentTimeMillis());
 		event.add(Math.max(updatePosition, bufferedPosition));
 		event.add(playbackError);
-		eventSink.success(event);
+		if(eventSink != null)
+			eventSink.success(event);
 	}
 
 	private long getCurrentPosition() {
