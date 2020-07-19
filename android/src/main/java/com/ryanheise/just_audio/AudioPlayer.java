@@ -399,8 +399,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	}
 
 	public void dispose() {
-		simpleCache.release();
 		player.release();
+		simpleCache.release();
 		buffering = false;
 		transition(PlaybackState.none);
 	}
