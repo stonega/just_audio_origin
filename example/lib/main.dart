@@ -20,7 +20,8 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _player = AudioPlayer();
     _player.setUrl(
-        "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3");
+        "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
+        cacheMax: 1024*1024*100);
   }
 
   @override
@@ -61,7 +62,8 @@ class _MyAppState extends State<MyApp> {
                               iconSize: 64,
                               icon: Icon(Icons.refresh),
                               onPressed: () => _player.setUrl(
-                                  "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3"),
+                                  "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
+                                  cacheMax: 1000* 1000 * 100),
                             )
                           else if (state == AudioPlaybackState.connecting ||
                               buffering == true)
