@@ -62,7 +62,7 @@ class AudioPlayer {
 
   // TODO: also broadcast this event on instantiation.
   AudioPlaybackEvent _audioPlaybackEvent = AudioPlaybackEvent(
-    state: AudioPlaybackState.none,
+    state: AudioPlaybackState.connecting,
     buffering: false,
     updatePosition: Duration.zero,
     updateTime: Duration.zero,
