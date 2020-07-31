@@ -105,7 +105,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 				eventSink = null;
 			}
 		});
-		state = PlaybackState.none;
+		state = PlaybackState.connecting;
 
 		player = new SimpleExoPlayer.Builder(context).build();
 		player.addListener(this);
