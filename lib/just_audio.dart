@@ -91,6 +91,10 @@ class AudioPlayer {
 
   double _speed = 1.0;
 
+  double _pitch = 1.0;
+
+  bool _skipSilence = false;
+
   bool _automaticallyWaitsToMinimizeStalling = true;
 
   File _cacheFile;
@@ -183,6 +187,10 @@ class AudioPlayer {
 
   /// The current speed of the player.
   double get speed => _speed;
+
+  double get pitch => _pitch;
+
+  bool get skipSilence => _skipSilence;
 
   /// Whether the player should automatically delay playback in order to minimize stalling. (iOS 10.0 or later only)
   bool get automaticallyWaitsToMinimizeStalling =>
@@ -291,6 +299,16 @@ class AudioPlayer {
   Future<void> setSpeed(final double speed) async {
     _speed = speed;
     await _invokeMethod('setSpeed', [speed]);
+  }
+
+  Future<void> setPitch(final double pitch) async {
+    _pitch = pitch;
+    await _invokeMethod('setPitch', [pitch]);
+  }
+
+  Future<void> setSkipSilence(final bool skipSilence) async {
+    _skipSilence = skipSilence;
+    await _invokeMethod('setSkipSilence', [skipSilence]);
   }
 
   /// Sets automaticallyWaitsToMinimizeStalling for AVPlayer in iOS 10.0 or later, defaults to true.

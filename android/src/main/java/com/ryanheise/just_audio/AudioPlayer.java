@@ -54,6 +54,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private Long end;
 	private float volume = 1.0f;
 	private float speed = 1.0f;
+	private float pitch = 1.0f;
+	private boolean skipSlience = false;
 	private Long seekPos;
 	private Result prepareResult;
 	private Result seekResult;
@@ -213,6 +215,14 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 					break;
 				case "setSpeed":
 					setSpeed((float) ((double) ((Double) args.get(0))));
+					result.success(null);
+					break;
+				case "setPitch":
+					setPitch((float) ((double) ((Double) args.get(0))));
+					result.success(null);
+					break;
+				case "setSkipSilence":
+					setSkipSilence((boolean) ((Boolean) args.get(0)));
 					result.success(null);
 					break;
 				case "seek":
@@ -379,7 +389,19 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 
 	public void setSpeed(final float speed) {
 		this.speed = speed;
-		player.setPlaybackParameters(new PlaybackParameters(speed));
+		player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
+		broadcastPlaybackEvent();
+	}
+
+	public void setSkipSilence(final boolean skipSlience){
+		this.skipSlience = skipSlience;
+		player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
+		broadcastPlaybackEvent();
+	}
+
+	public void setPitch(final float pitch) {
+		this.pitch = pitch;
+		player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
 		broadcastPlaybackEvent();
 	}
 

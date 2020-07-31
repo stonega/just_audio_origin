@@ -20,8 +20,8 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _player = AudioPlayer();
     _player.setUrl(
-        "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
-        cacheMax: 1024*1024*100);
+        "https://aphid.fireside.fm/d/1437767933/94c5a33e-da45-4dd9-acc2-52d4b924d520/bc2994a0-80be-4666-916a-db332a5eb39b.mp3",
+        cacheMax: 1024 * 1024 * 100);
   }
 
   @override
@@ -62,8 +62,8 @@ class _MyAppState extends State<MyApp> {
                               iconSize: 64,
                               icon: Icon(Icons.refresh),
                               onPressed: () => _player.setUrl(
-                                  "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
-                                  cacheMax: 1000* 1000 * 100),
+                                  "https://aphid.fireside.fm/d/1437767933/94c5a33e-da45-4dd9-acc2-52d4b924d520/bc2994a0-80be-4666-916a-db332a5eb39b.mp3",
+                                  cacheMax: 1000 * 1000 * 100),
                             )
                           else if (state == AudioPlaybackState.connecting ||
                               buffering == true)
@@ -164,6 +164,15 @@ class _MyAppState extends State<MyApp> {
                   },
                 ),
               ),
+              IconButton(
+                  icon: Icon(Icons.skip_previous),
+                  onPressed: () => _player.setSkipSilence(true)),
+              IconButton(
+                  icon: Icon(Icons.skip_next),
+                  onPressed: () => _player.setSkipSilence(false)),
+              IconButton(
+                  icon: Icon(Icons.ac_unit),
+                  onPressed: () => _player.setPitch(1.0)),
             ],
           ),
         ),
