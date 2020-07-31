@@ -62,7 +62,7 @@ class AudioPlayer {
 
   // TODO: also broadcast this event on instantiation.
   AudioPlaybackEvent _audioPlaybackEvent = AudioPlaybackEvent(
-    state: AudioPlaybackState.none,
+    state: AudioPlaybackState.connecting,
     buffering: false,
     updatePosition: Duration.zero,
     updateTime: Duration.zero,
@@ -122,13 +122,13 @@ class AudioPlayer {
         playbackEventStream.map((state) => state.bufferedPosition).distinct());
     _playbackErrorSubject.addStream(
         playbackEventStream.map((state) => state.playbackError).distinct());
-    _fullPlaybackStateSubject.addStream(
-        Rx.combineLatest3<AudioPlaybackState, bool, String, FullAudioPlaybackState>(
-            playbackStateStream,
-            bufferingStream,
-            playbackErrorStream,
-            (state, buffering, playbackError) =>
-                FullAudioPlaybackState(state, buffering, playbackError)));
+    _fullPlaybackStateSubject.addStream(Rx.combineLatest3<AudioPlaybackState,
+            bool, String, FullAudioPlaybackState>(
+        playbackStateStream,
+        bufferingStream,
+        playbackErrorStream,
+        (state, buffering, playbackError) =>
+            FullAudioPlaybackState(state, buffering, playbackError)));
   }
 
   /// The duration of any media set via [setUrl], [setFilePath] or [setAsset],
@@ -161,9 +161,10 @@ class AudioPlayer {
   /// A stream of buffered positions.
   Stream<Duration> get bufferedPositionStream =>
       _bufferedPositionSubject.stream;
+
   /// A stream of playback error
-  Stream<String> get playbackErrorStream => 
-      _playbackErrorSubject.stream;
+  Stream<String> get playbackErrorStream => _playbackErrorSubject.stream;
+
   /// A stream of [FullAudioPlaybackState]s.
   Stream<FullAudioPlaybackState> get fullPlaybackStateStream =>
       _fullPlaybackStateSubject.stream;
@@ -203,20 +204,20 @@ class AudioPlayer {
   /// [setFilePath] or [setAsset].
   // Future<Duration> setFilePath(final String filePath) =>
   //     setUrl('file://$filePath', 1000);
- ////
+  ////
   /// Loads audio media from an asset and completes with the duration of that
   /// audio, or null if this call was interrupted by another call so [setUrl],
   /// [setFilePath] or [setAsset].
- // Future<Duration> setAsset(final String assetPath) async {
- //   final file = await _getCacheFile(assetPath);
- //   this._cacheFile = file;
- //   if (!file.existsSync()) {
- //     await file.create(recursive: true);
- //   }
- //   await file
- //       .writeAsBytes((await rootBundle.load(assetPath)).buffer.asUint8List());
- //   return await setFilePath(file.path);
- // }
+  // Future<Duration> setAsset(final String assetPath) async {
+  //   final file = await _getCacheFile(assetPath);
+  //   this._cacheFile = file;
+  //   if (!file.existsSync()) {
+  //     await file.create(recursive: true);
+  //   }
+  //   await file
+  //       .writeAsBytes((await rootBundle.load(assetPath)).buffer.asUint8List());
+  //   return await setFilePath(file.path);
+  // }
 
   /// Get file for caching asset media with proper extension
 //  Future<File> _getCacheFile(final String assetPath) async => File(p.join(
@@ -374,9 +375,10 @@ class AudioPlaybackEvent {
           (Duration(milliseconds: DateTime.now().millisecondsSinceEpoch) -
                   updateTime) *
               speed;
-      if(duration != null)
-      return result <= duration ? result : duration;
-      else return result; 
+      if (duration != null)
+        return result <= duration ? result : duration;
+      else
+        return result;
     } else {
       return updatePosition;
     }
