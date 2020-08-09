@@ -3,8 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// An object to manage playing audio from a URL, a locale file or an asset.
@@ -94,6 +92,10 @@ class AudioPlayer {
   double _pitch = 1.0;
 
   bool _skipSilence = false;
+
+  bool _boostVolume = false;
+
+  int _gain = 3000;
 
   bool _automaticallyWaitsToMinimizeStalling = true;
 
@@ -191,6 +193,10 @@ class AudioPlayer {
   double get pitch => _pitch;
 
   bool get skipSilence => _skipSilence;
+
+  bool get boostVolume => _boostVolume;
+
+  int get gain => _gain;
 
   /// Whether the player should automatically delay playback in order to minimize stalling. (iOS 10.0 or later only)
   bool get automaticallyWaitsToMinimizeStalling =>
@@ -309,6 +315,13 @@ class AudioPlayer {
   Future<void> setSkipSilence(final bool skipSilence) async {
     _skipSilence = skipSilence;
     await _invokeMethod('setSkipSilence', [skipSilence]);
+  }
+
+  Future<void> setBoostVolume(final bool boostVolume,
+      {final int gain = 3000}) async {
+    _boostVolume = boostVolume;
+    _gain = gain;
+    await _invokeMethod('setBoostVolume', [boostVolume, gain]);
   }
 
   /// Sets automaticallyWaitsToMinimizeStalling for AVPlayer in iOS 10.0 or later, defaults to true.

@@ -173,6 +173,12 @@ class _MyAppState extends State<MyApp> {
               IconButton(
                   icon: Icon(Icons.ac_unit),
                   onPressed: () => _player.setPitch(1.0)),
+              IconButton(
+                  icon: Icon(Icons.volume_down),
+                  onPressed: () => _player.setBoostVolume(false)),
+              IconButton(
+                  icon: Icon(Icons.volume_up),
+                  onPressed: () => _player.setBoostVolume(true)),
             ],
           ),
         ),

@@ -1,10 +1,13 @@
 package com.ryanheise.just_audio;
 
 import android.os.Handler;
+import android.media.audiofx.LoudnessEnhancer;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.Player.AudioComponent;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.audio.AudioListener;
 import com.google.android.exoplayer2.source.ClippingMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
@@ -34,8 +37,38 @@ import android.net.Uri;
 import java.util.List;
 import java.util.function.LongConsumer;
 import java.io.File;
+import java.io.*;
 
+class VolumeBooster implements AudioListener {
+	private boolean enabled = false;
+	private Context context;
+	private int gain = 3000;
+	private LoudnessEnhancer booster;
 
+	public void setEnabled(boolean enabled){
+		this.enabled = enabled;
+		if(booster != null){
+			booster.setEnabled(enabled);
+	  }
+   }
+
+   public void setGain(int gain){
+	   this.gain = gain;
+	   if(booster != null){
+			booster.setTargetGain(gain);
+	  }
+   }
+
+	@Override 
+	public void onAudioSessionId(int audioSessionId) {
+       if(booster != null){
+		   booster.release();
+	   }
+	   booster = new LoudnessEnhancer(audioSessionId);
+	   booster.setTargetGain(this.gain);
+	   booster.setEnabled(this.enabled);
+   }	
+}
 
 public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private final Registrar registrar;
@@ -43,6 +76,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private final MethodChannel methodChannel;
 	private final EventChannel eventChannel;
 	private EventSink eventSink;
+	private final VolumeBooster volumeBooster;
 
 	private final String id;
 	private volatile PlaybackState state;
@@ -56,6 +90,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private float speed = 1.0f;
 	private float pitch = 1.0f;
 	private boolean skipSlience = false;
+	private boolean boostVolume = false;
+	private int gain = 3000;
 	private Long seekPos;
 	private Result prepareResult;
 	private Result seekResult;
@@ -65,6 +101,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private boolean justConnected;
 	private MediaSource mediaSource;
 
+	
 	private final SimpleExoPlayer player;
 	private final Handler handler = new Handler();
 	private final Runnable bufferWatcher = new Runnable() {
@@ -108,9 +145,10 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 			}
 		});
 		state = PlaybackState.connecting;
-
 		player = new SimpleExoPlayer.Builder(context).build();
 		player.addListener(this);
+	    volumeBooster = new VolumeBooster();
+		player.addAudioListener(volumeBooster);
 	}
 
 	private void startWatchingBuffer() {
@@ -223,6 +261,10 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 					break;
 				case "setSkipSilence":
 					setSkipSilence((boolean) ((Boolean) args.get(0)));
+					result.success(null);
+					break;
+				case "setBoostVolume":
+					setBoostVolume((boolean) ((Boolean) args.get(0)), (int) ((Integer) args.get(1)));
 					result.success(null);
 					break;
 				case "seek":
@@ -404,6 +446,15 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
 		broadcastPlaybackEvent();
 	}
+
+	public void setBoostVolume(final boolean enabled, final int gain){
+		this.boostVolume = enabled;
+		this.gain = gain;
+		if(volumeBooster != null)
+		{volumeBooster.setEnabled(enabled);
+		volumeBooster.setGain(gain);}
+	}
+
 
 	public void seek(final long position, final Result result) {
 		if (state == PlaybackState.none || state == PlaybackState.connecting) {
