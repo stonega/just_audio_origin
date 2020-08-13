@@ -59,7 +59,7 @@ class VolumeBooster implements AudioListener {
 	  }
    }
 
-   public void dispost(){
+   public void dispose(){
 	   if(booster != null){
 		   booster.release();
 	   }
