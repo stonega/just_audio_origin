@@ -59,6 +59,12 @@ class VolumeBooster implements AudioListener {
 	  }
    }
 
+   public void dispost(){
+	   if(booster != null){
+		   booster.release();
+	   }
+   }
+
 	@Override 
 	public void onAudioSessionId(int audioSessionId) {
        if(booster != null){
@@ -469,6 +475,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 
 	public void dispose() {
 		player.release();
+		volumeBooster.dispose();
 		buffering = false;
 		transition(PlaybackState.none);
 	}
