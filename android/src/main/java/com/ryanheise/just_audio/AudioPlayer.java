@@ -153,8 +153,12 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		state = PlaybackState.connecting;
 		player = new SimpleExoPlayer.Builder(context).build();
 		player.addListener(this);
-	    volumeBooster = new VolumeBooster();
-		player.addAudioListener(volumeBooster);
+		try {volumeBooster = new VolumeBooster();}
+		catch(RuntimeException e){
+			volumeBooster = null;
+			e.printStackTrace();
+		}
+		if(volumneBooster != null ){player.addAudioListener(volumeBooster);}
 	}
 
 	private void startWatchingBuffer() {
@@ -475,7 +479,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 
 	public void dispose() {
 		player.release();
-		volumeBooster.dispose();
+		if(volumeBooster!=null)
+		{volumeBooster.dispose();}
 		buffering = false;
 		transition(PlaybackState.none);
 	}
