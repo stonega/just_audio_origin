@@ -153,12 +153,13 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		state = PlaybackState.connecting;
 		player = new SimpleExoPlayer.Builder(context).build();
 		player.addListener(this);
-		try {volumeBooster = new VolumeBooster();}
+		volumeBooster = new VolumeBooster();
+		try { 
+			player.addAudioListener(volumeBooster);
+		}
 		catch(RuntimeException e){
-			volumeBooster = null;
 			e.printStackTrace();
 		}
-		if(volumneBooster != null ){player.addAudioListener(volumeBooster);}
 	}
 
 	private void startWatchingBuffer() {
@@ -274,8 +275,11 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 					result.success(null);
 					break;
 				case "setBoostVolume":
-					setBoostVolume((boolean) ((Boolean) args.get(0)), (int) ((Integer) args.get(1)));
-					result.success(null);
+					try{setBoostVolume((boolean) ((Boolean) args.get(0)), (int) ((Integer) args.get(1)));
+					result.success(null);}
+					catch(RuntimeException e){
+						result.notImplemented();
+					}
 					break;
 				case "seek":
 					Object position = args.get(0);
