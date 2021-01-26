@@ -82,7 +82,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 	private final MethodChannel methodChannel;
 	private final EventChannel eventChannel;
 	private EventSink eventSink;
-	private final VolumeBooster volumeBooster;
+	private VolumeBooster volumeBooster;
 
 	private final String id;
 	private volatile PlaybackState state;
@@ -153,12 +153,13 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener {
 		state = PlaybackState.connecting;
 		player = new SimpleExoPlayer.Builder(context).build();
 		player.addListener(this);
-		volumeBooster = new VolumeBooster();
 		try { 
+			volumeBooster = new VolumeBooster();
 			player.addAudioListener(volumeBooster);
 		}
-		catch(RuntimeException e){
+		catch(Exception e){
 			e.printStackTrace();
+			volumeBooster = null;
 		}
 	}
 
