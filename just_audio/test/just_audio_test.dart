@@ -1366,7 +1366,7 @@ class MockAudioPlayer implements AudioPlayerPlatform {
   }
 
   @override
-  Future<SetSpeedResponse> setBoostVolume(SetBoostVolumeRequest request) {
+  Future<SetBoostVolumeResponse> setBoostVolume(SetBoostVolumeRequest request) {
       // TODO: implement setBoostVolume
       throw UnimplementedError();
     }

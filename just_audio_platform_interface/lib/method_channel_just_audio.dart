@@ -69,6 +69,17 @@ class MethodChannelAudioPlayer extends AudioPlayerPlatform {
   }
 
   @override
+  Future<SetBoostVolumeResponse> setBoostVolume(SetBoostVolumeRequest request) async {
+    return SetBoostVolumeResponse.fromMap((await _channel
+        .invokeMethod<Map<dynamic, dynamic>>('setBoostVolume', request.toMap()))!);
+  }
+
+  @override
+  Future<SetSkipSilenceResponse> setSkipSilence(SetSkipSilenceRequest request) async {
+    return SetSkipSilenceResponse.fromMap((await _channel
+        .invokeMethod<Map<dynamic, dynamic>>('setSkipSilence', request.toMap()))!);
+  }
+  @override
   Future<SetLoopModeResponse> setLoopMode(SetLoopModeRequest request) async {
     return SetLoopModeResponse.fromMap((await _channel
         .invokeMethod<Map<dynamic, dynamic>>('setLoopMode', request.toMap()))!);

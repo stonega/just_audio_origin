@@ -16,7 +16,6 @@ import 'package:rxdart/rxdart.dart';
 import 'package:uuid/uuid.dart';
 
 final _uuid = Uuid();
-const _defaultCacheMax = 1000 * 1000 * 100;
 
 /// An object to manage playing audio from a URL, a locale file or an asset.
 ///
@@ -562,8 +561,7 @@ class AudioPlayer {
   Future<Duration?> setUrl(String url,
           {Map<String, String>? headers,
           Duration? initialPosition,
-          bool preload = true,
-          int cacheMax = _defaultCacheMax}) =>
+          bool preload = true}) =>
       setAudioSource(
         AudioSource.uri(Uri.parse(url), headers: headers),
         initialPosition: initialPosition,
@@ -2657,6 +2655,16 @@ class _IdleAudioPlayer extends AudioPlayerPlatform {
   @override
   Future<SetSpeedResponse> setSpeed(SetSpeedRequest request) async {
     return SetSpeedResponse();
+  }
+
+  @override
+  Future<SetSkipSilenceResponse> setSkipSilence(SetSkipSilenceRequest request) async {
+    return SetSkipSilenceResponse();
+  }
+
+  @override
+  Future<SetBoostVolumeResponse> setBoostVolume(SetBoostVolumeRequest request) async {
+    return SetBoostVolumeResponse();
   }
 
   @override

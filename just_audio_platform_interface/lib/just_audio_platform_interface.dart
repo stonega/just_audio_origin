@@ -100,7 +100,7 @@ abstract class AudioPlayerPlatform {
     throw UnimplementedError("setSkipSilence() has not been implemented.");
   }
   /// Changes the playback boost vloume.
-  Future<SetSpeedResponse> setBoostVolume(SetBoostVolumeRequest request) {
+  Future<SetBoostVolumeResponse> setBoostVolume(SetBoostVolumeRequest request) {
     throw UnimplementedError("setBoostVolume() has not been implemented.");
   }
   /// Sets the loop mode.

@@ -19,9 +19,9 @@ class _MyAppState extends State<MyApp> {
   final _playlist = ConcatenatingAudioSource(children: [
     ClippingAudioSource(
       start: Duration(seconds: 60),
-      end: Duration(seconds: 90),
+      // end: Duration(seconds: 90),
       child: AudioSource.uri(Uri.parse(
-          "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3")),
+          "https://aphid.fireside.fm/d/1437767933/94c5a33e-da45-4dd9-acc2-52d4b924d520/bc2994a0-80be-4666-916a-db332a5eb39b.mp3")),
       tag: AudioMetadata(
         album: "Science Friday",
         title: "A Salute To Head-Scratching Science (30 seconds)",
@@ -293,6 +293,9 @@ class ControlButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
+            icon: Icon(Icons.bolt),
+            onPressed: () => player.setBoostVolume(!(player.boostVolume), 3000)),
+        IconButton(
           icon: Icon(Icons.volume_up),
           onPressed: () {
             _showSliderDialog(
@@ -374,6 +377,9 @@ class ControlButtons extends StatelessWidget {
             },
           ),
         ),
+        IconButton(
+            icon: Icon(Icons.bolt),
+            onPressed: () => player.setSkipSilence(!(player.skipSilence))),
       ],
     );
   }

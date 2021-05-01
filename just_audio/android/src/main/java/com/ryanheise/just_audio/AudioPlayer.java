@@ -56,37 +56,6 @@ import java.util.Map;
 import java.util.Random;
 import java.io.*;
 
-class VolumeBooster implements AudioListener {
-	private boolean enabled = false;
-	private Context context;
-	private int gain = 3000;
-	private LoudnessEnhancer booster;
-
-	public void setEnabled(boolean enabled){
-		this.enabled = enabled;
-		if(booster != null){
-			booster.setEnabled(enabled);
-	  }
-   }
-
-   public void setGain(int gain){
-	   this.gain = gain;
-	   if(booster != null){
-			booster.setTargetGain(gain);
-	  }
-   }
-
-	@Override 
-	public void onAudioSessionId(int audioSessionId) {
-       if(booster != null){
-		   booster.release();
-	   }
-	   booster = new LoudnessEnhancer(audioSessionId);
-	   booster.setTargetGain(this.gain);
-	   booster.setEnabled(this.enabled);
-   }	
-}
-
 public class AudioPlayer implements MethodCallHandler, Player.EventListener, AudioListener, MetadataOutput {
 
     static final String TAG = "AudioPlayer";
@@ -97,16 +66,18 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
     private final MethodChannel methodChannel;
     private final EventChannel eventChannel;
     private EventSink eventSink;
-    private final VolumeBooster volumeBooster;
+    private LoudnessEnhancer booster;
 
     private ProcessingState processingState;
     private long bufferedPosition;
     private Long start;
     private Long end;
     private float pitch = 1.0f;
-	private boolean skipSlience = false;
+	private boolean skipSilence = false;
     private boolean boostVolume = false;
 	private int gain = 3000;
+    private long cacheMax = 1000 * 1000 * 100;
+    private float speed = 1.0f;
     private Long seekPos;
     private long initialPos;
     private Integer initialIndex;
@@ -183,6 +154,12 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
         } else {
             this.audioSessionId = audioSessionId;
         }
+        if(booster != null){
+		   this.booster.release();
+	    }
+        this.booster = new LoudnessEnhancer(audioSessionId);
+        this.booster.setTargetGain(this.gain);
+	    this.booster.setEnabled(this.boostVolume);
         broadcastPlaybackEvent();
     }
 
@@ -559,13 +536,14 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
                 DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS,
                 true
         );
-        return new DefaultDataSourceFactory(context, httpDataSourceFactory);
+        DefaultDataSourceFactory sourceFactory = new DefaultDataSourceFactory(context, httpDataSourceFactory);
+        DataSource.Factory cacheDataSourceFactory = new CacheDataSourceFactory(AudioCache.getInstance(context, cacheMax), sourceFactory);
+        return cacheDataSourceFactory;
     }
 
     private void load(final MediaSource mediaSource, final long cacheMax, final long initialPosition, final Integer initialIndex, final Result result) {
         this.initialPos = initialPosition;
         this.initialIndex = initialIndex;
-        DataSource.Factory cacheDataSourceFactory = new CacheDataSourceFactory(AudioCache.getInstance(context, cacheMax), mediaSource);
         currentIndex = initialIndex != null ? initialIndex : 0;
         switch (processingState) {
         case none:
@@ -594,8 +572,6 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
             player.addMetadataOutput(this);
             player.addListener(this);
             player.addAudioListener(this);
-            volumeBooster = new VolumeBooster();
-		    player.addAudioListener(volumeBooster);
         }
     }
 
@@ -730,29 +706,31 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
     }
 
     public void setSpeed(final float speed) {
+        this.speed = speed;
         if (player.getPlaybackParameters().speed != speed)
-            player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
+            player.setPlaybackParameters(new PlaybackParameters(speed));
         broadcastPlaybackEvent();
     }
     
-    public void setSkipSilence(final boolean skipSlience){
-		this.skipSlience = skipSlience;
-		player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
+    public void setSkipSilence(final boolean skipSilence){
+		this.skipSilence = skipSilence;
+        if(player.getSkipSilenceEnabled() != skipSilence)
+            player.setSkipSilenceEnabled(skipSilence);
 		broadcastPlaybackEvent();
 	}
     
     public void setPitch(final float pitch) {
 		this.pitch = pitch;
-		player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
+		player.setPlaybackParameters(new PlaybackParameters(speed, pitch));
 		broadcastPlaybackEvent();
 	}
     
     public void setBoostVolume(final boolean enabled, final int gain){
 		this.boostVolume = enabled;
 		this.gain = gain;
-		if(volumeBooster != null)
-		{volumeBooster.setEnabled(enabled);
-		volumeBooster.setGain(gain);}
+		if(this.booster != null) {
+            this.booster.setEnabled(this.boostVolume);
+		    this.booster.setTargetGain(this.gain);}
 	}
 
 
@@ -810,6 +788,20 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
 
     public static Long getLong(Object o) {
         return (o == null || o instanceof Long) ? (Long)o : new Long(((Integer)o).intValue());
+    }
+    
+    public void _setEnabled(boolean enabled){
+		this.boostVolume = enabled;
+		if(this.booster != null){
+			this.booster.setEnabled(enabled);
+	  }
+    }
+
+    public void _setGain(int gain){
+	   this.gain = gain;
+	   if(this.booster != null){
+			this.booster.setTargetGain(gain);
+	  }
     }
 
     @SuppressWarnings("unchecked")
