@@ -3,12 +3,15 @@ package com.ryanheise.just_audio;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
+import android.media.audiofx.LoudnessEnhancer;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.Player.AudioComponent;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.audio.AudioListener;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.audio.AudioAttributes;
 import com.google.android.exoplayer2.audio.AudioListener;
@@ -32,8 +35,10 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
+import com.google.android.exoplayer2.upstream.cache.CacheDataSourceFactory;
 import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.Util;
+import com.google.android.exoplayer2.database.ExoDatabaseProvider;
 import io.flutter.Log;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
@@ -49,6 +54,38 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.io.*;
+
+class VolumeBooster implements AudioListener {
+	private boolean enabled = false;
+	private Context context;
+	private int gain = 3000;
+	private LoudnessEnhancer booster;
+
+	public void setEnabled(boolean enabled){
+		this.enabled = enabled;
+		if(booster != null){
+			booster.setEnabled(enabled);
+	  }
+   }
+
+   public void setGain(int gain){
+	   this.gain = gain;
+	   if(booster != null){
+			booster.setTargetGain(gain);
+	  }
+   }
+
+	@Override 
+	public void onAudioSessionId(int audioSessionId) {
+       if(booster != null){
+		   booster.release();
+	   }
+	   booster = new LoudnessEnhancer(audioSessionId);
+	   booster.setTargetGain(this.gain);
+	   booster.setEnabled(this.enabled);
+   }	
+}
 
 public class AudioPlayer implements MethodCallHandler, Player.EventListener, AudioListener, MetadataOutput {
 
@@ -60,11 +97,16 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
     private final MethodChannel methodChannel;
     private final EventChannel eventChannel;
     private EventSink eventSink;
+    private final VolumeBooster volumeBooster;
 
     private ProcessingState processingState;
     private long bufferedPosition;
     private Long start;
     private Long end;
+    private float pitch = 1.0f;
+	private boolean skipSlience = false;
+    private boolean boostVolume = false;
+	private int gain = 3000;
     private Long seekPos;
     private long initialPos;
     private Integer initialIndex;
@@ -292,7 +334,7 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
             case "load":
                 Long initialPosition = getLong(call.argument("initialPosition"));
                 Integer initialIndex = call.argument("initialIndex");
-                load(getAudioSource(call.argument("audioSource")),
+                load(getAudioSource(call.argument("audioSource")), (long) ((Integer) call.argument("cacheMax")),
                         initialPosition == null ? C.TIME_UNSET : initialPosition / 1000,
                         initialIndex, result);
                 break;
@@ -326,6 +368,18 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
             case "setAutomaticallyWaitsToMinimizeStalling":
                 result.success(new HashMap<String, Object>());
                 break;
+            case "setPitch":
+				setPitch((float) ((double) ((Double) call.argument("patch"))));
+				result.success(new HashMap<String, Object>());
+				break;
+			case "setSkipSilence":
+				setSkipSilence((boolean) ((Boolean) call.argument("skipSilence")));
+				result.success(new HashMap<String, Object>());
+				break;
+            case "setBoostVolume":
+				setBoostVolume((boolean) ((Boolean) call.argument("enabled")), (int) ((Integer) call.argument("gain")));
+				result.success(new HashMap<String, Object>());
+				break;
             case "seek":
                 Long position = getLong(call.argument("position"));
                 Integer index = call.argument("index");
@@ -508,9 +562,10 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
         return new DefaultDataSourceFactory(context, httpDataSourceFactory);
     }
 
-    private void load(final MediaSource mediaSource, final long initialPosition, final Integer initialIndex, final Result result) {
+    private void load(final MediaSource mediaSource, final long cacheMax, final long initialPosition, final Integer initialIndex, final Result result) {
         this.initialPos = initialPosition;
         this.initialIndex = initialIndex;
+        DataSource.Factory cacheDataSourceFactory = new CacheDataSourceFactory(AudioCache.getInstance(context, cacheMax), mediaSource);
         currentIndex = initialIndex != null ? initialIndex : 0;
         switch (processingState) {
         case none:
@@ -539,6 +594,8 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
             player.addMetadataOutput(this);
             player.addListener(this);
             player.addAudioListener(this);
+            volumeBooster = new VolumeBooster();
+		    player.addAudioListener(volumeBooster);
         }
     }
 
@@ -674,9 +731,30 @@ public class AudioPlayer implements MethodCallHandler, Player.EventListener, Aud
 
     public void setSpeed(final float speed) {
         if (player.getPlaybackParameters().speed != speed)
-            player.setPlaybackParameters(new PlaybackParameters(speed));
+            player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
         broadcastPlaybackEvent();
     }
+    
+    public void setSkipSilence(final boolean skipSlience){
+		this.skipSlience = skipSlience;
+		player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
+		broadcastPlaybackEvent();
+	}
+    
+    public void setPitch(final float pitch) {
+		this.pitch = pitch;
+		player.setPlaybackParameters(new PlaybackParameters(speed, pitch, skipSlience));
+		broadcastPlaybackEvent();
+	}
+    
+    public void setBoostVolume(final boolean enabled, final int gain){
+		this.boostVolume = enabled;
+		this.gain = gain;
+		if(volumeBooster != null)
+		{volumeBooster.setEnabled(enabled);
+		volumeBooster.setGain(gain);}
+	}
+
 
     public void setLoopMode(final int mode) {
         player.setRepeatMode(mode);

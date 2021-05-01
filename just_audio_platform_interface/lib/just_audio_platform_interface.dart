@@ -91,6 +91,18 @@ abstract class AudioPlayerPlatform {
     throw UnimplementedError("setSpeed() has not been implemented.");
   }
 
+  /// Changes the playback pitch.
+  Future<SetPitchResponse> setPitch(SetPitchRequest request) {
+    throw UnimplementedError("setPitch() has not been implemented.");
+  }
+  /// Changes the playback skip silence.
+  Future<SetSkipSilenceResponse> setSkipSilence(SetSkipSilenceRequest request) {
+    throw UnimplementedError("setSkipSilence() has not been implemented.");
+  }
+  /// Changes the playback boost vloume.
+  Future<SetSpeedResponse> setBoostVolume(SetBoostVolumeRequest request) {
+    throw UnimplementedError("setBoostVolume() has not been implemented.");
+  }
   /// Sets the loop mode.
   Future<SetLoopModeResponse> setLoopMode(SetLoopModeRequest request) {
     throw UnimplementedError("setLoopMode() has not been implemented.");
@@ -312,17 +324,20 @@ class LoadRequest {
   final AudioSourceMessage audioSourceMessage;
   final Duration? initialPosition;
   final int? initialIndex;
+  final int cacheMax;
 
   LoadRequest({
     required this.audioSourceMessage,
     this.initialPosition,
     this.initialIndex,
+    required this.cacheMax
   });
 
   Map<dynamic, dynamic> toMap() => <dynamic, dynamic>{
         'audioSource': audioSourceMessage.toMap(),
         'initialPosition': initialPosition?.inMicroseconds,
         'initialIndex': initialIndex,
+        'cacheMax': cacheMax
       };
 }
 
@@ -400,6 +415,49 @@ class SetSpeedResponse {
       SetSpeedResponse();
 }
 
+class SetPitchRequest {
+  final double pitch;
+
+  SetPitchRequest({required this.pitch});
+
+  Map<dynamic, dynamic> toMap() => <dynamic, dynamic>{
+        'pitch': pitch,
+      };
+}
+class SetPitchResponse {
+  static SetPitchResponse fromMap(Map<dynamic, dynamic> map) =>
+      SetPitchResponse();
+}
+
+class SetSkipSilenceRequest {
+  final bool skipSilence;
+
+  SetSkipSilenceRequest({required this.skipSilence});
+
+  Map<dynamic, dynamic> toMap() => <dynamic, dynamic>{
+        'skipSilence': skipSilence,
+      };
+}
+class SetSkipSilenceResponse {
+  static SetSkipSilenceResponse fromMap(Map<dynamic, dynamic> map) =>
+      SetSkipSilenceResponse();
+}
+
+class SetBoostVolumeRequest{
+  final bool enabled;
+  final int gain;
+
+  SetBoostVolumeRequest({required this.enabled, required this.gain});
+
+  Map<dynamic, dynamic> toMap() => <dynamic, dynamic>{
+        'enabled': enabled,
+        'gain': gain
+      };
+}
+class SetBoostVolumeResponse {
+  static SetBoostVolumeResponse fromMap(Map<dynamic, dynamic> map) =>
+      SetBoostVolumeResponse();
+}
 /// Information communicated to the platform implementation when setting the
 /// loop mode.
 class SetLoopModeRequest {

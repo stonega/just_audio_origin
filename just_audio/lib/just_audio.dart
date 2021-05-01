@@ -16,6 +16,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:uuid/uuid.dart';
 
 final _uuid = Uuid();
+const _defaultCacheMax = 1000 * 1000 * 100;
 
 /// An object to manage playing audio from a URL, a locale file or an asset.
 ///
@@ -98,6 +99,16 @@ class AudioPlayer {
   AndroidAudioAttributes? _androidAudioAttributes;
   final bool _androidApplyAudioAttributes;
   final bool _handleAudioSessionActivation;
+
+  double _pitch = 1.0;
+  bool _skipSilence = false;
+  bool _boostVolume = false;
+  int _gain = 3000;
+  int _cacheMax = 1000 * 1000 * 100;
+
+  set cacheMax(int value) {
+    this._cacheMax = value;
+  }
 
   /// Creates an [AudioPlayer].
   ///
@@ -297,6 +308,11 @@ class AudioPlayer {
 
   /// The current speed of the player.
   double get speed => _speedSubject.value!;
+
+  double get patch => _pitch;
+  bool get skipSilence => _skipSilence;
+  bool get boostVolume => _boostVolume;
+  int get gain => _gain;
 
   /// A stream of current speed values.
   Stream<double> get speedStream => _speedSubject.stream;
@@ -543,14 +559,16 @@ class AudioPlayer {
   /// ```
   ///
   /// See [setAudioSource] for a detailed explanation of the options.
-  Future<Duration?> setUrl(
-    String url, {
-    Map<String, String>? headers,
-    Duration? initialPosition,
-    bool preload = true,
-  }) =>
-      setAudioSource(AudioSource.uri(Uri.parse(url), headers: headers),
-          initialPosition: initialPosition, preload: preload);
+  Future<Duration?> setUrl(String url,
+          {Map<String, String>? headers,
+          Duration? initialPosition,
+          bool preload = true,
+          int cacheMax = _defaultCacheMax}) =>
+      setAudioSource(
+        AudioSource.uri(Uri.parse(url), headers: headers),
+        initialPosition: initialPosition,
+        preload: preload,
+      );
 
   /// Convenience method to set the audio source to a file, preloaded by
   /// default, with an initial position of zero by default.
@@ -583,8 +601,11 @@ class AudioPlayer {
     bool preload = true,
     Duration? initialPosition,
   }) =>
-      setAudioSource(AudioSource.uri(Uri.parse('asset:///$assetPath')),
-          initialPosition: initialPosition, preload: preload);
+      setAudioSource(
+        AudioSource.uri(Uri.parse('asset:///$assetPath')),
+        initialPosition: initialPosition,
+        preload: preload,
+      );
 
   /// Sets the source from which this audio player should fetch audio.
   ///
@@ -696,10 +717,10 @@ class AudioPlayer {
       _updateShuffleIndices();
       _durationFuture = platform
           .load(LoadRequest(
-            audioSourceMessage: source._toMessage(),
-            initialPosition: initialSeekValues?.position,
-            initialIndex: initialSeekValues?.index,
-          ))
+              audioSourceMessage: source._toMessage(),
+              initialPosition: initialSeekValues?.position,
+              initialIndex: initialSeekValues?.index,
+              cacheMax: _cacheMax))
           .then((response) => response.duration);
       final duration = await _durationFuture;
       _durationSubject.add(duration);
@@ -729,18 +750,20 @@ class AudioPlayer {
   /// original [AudioSource]. If [end] is null, it will be reset to the end of
   /// the original [AudioSource]. This method cannot be called from the
   /// [ProcessingState.idle] state.
-  Future<Duration?> setClip({Duration? start, Duration? end}) async {
+  Future<Duration?> setClip(
+      {Duration? start, Duration? end, int? cacheMax}) async {
     if (_disposed) return null;
     _setPlatformActive(true)?.catchError((dynamic e) {});
     final duration = await _load(
-        await _platform,
-        start == null && end == null
-            ? _audioSource!
-            : ClippingAudioSource(
-                child: _audioSource as UriAudioSource,
-                start: start,
-                end: end,
-              ));
+      await _platform,
+      start == null && end == null
+          ? _audioSource!
+          : ClippingAudioSource(
+              child: _audioSource as UriAudioSource,
+              start: start,
+              end: end,
+            ),
+    );
     return duration;
   }
 
@@ -866,6 +889,24 @@ class AudioPlayer {
     _playbackEventSubject.add(_playbackEvent);
     _speedSubject.add(speed);
     await (await _platform).setSpeed(SetSpeedRequest(speed: speed));
+  }
+
+  Future<void> setPitch(final double pitch) async {
+    _pitch = pitch;
+    await (await _platform).setPitch(SetPitchRequest(pitch: pitch));
+  }
+
+  Future<void> setSkipSilence(final bool skipSilence) async {
+    _skipSilence = skipSilence;
+    await (await _platform)
+        .setSkipSilence(SetSkipSilenceRequest(skipSilence: skipSilence));
+  }
+
+  Future<void> setBoostVolume(final bool enabled, final int gain) async {
+    _boostVolume = enabled;
+    _gain = gain;
+    await (await _platform)
+        .setBoostVolume(SetBoostVolumeRequest(enabled: enabled, gain: gain));
   }
 
   /// Sets the [LoopMode]. Looping will be gapless on Android, iOS and macOS. On
